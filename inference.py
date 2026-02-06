@@ -4,8 +4,9 @@ from typing import Callable, List, Tuple
 from huggingface_hub import hf_hub_download
 import safetensors.torch as st
 import torch
-import torchaudio
-from torchcodec.decoders import AudioDecoder
+import numpy
+import soundfile
+import soxr
 
 from autoencoder import DAC, build_ae
 from model import EchoDiT
@@ -101,14 +102,15 @@ def load_pca_state_from_hf(repo_id: str = "jordand/echo-tts-base", device: str =
 # ________
 
 def load_audio(path: str, max_duration: int = 300) -> torch.Tensor:
-
-    decoder = AudioDecoder(path)
-    sr = decoder.metadata.sample_rate
-    audio = decoder.get_samples_played_in_range(0, max_duration)
-    audio = audio.data.mean(dim=0).unsqueeze(0)
-    audio = torchaudio.functional.resample(audio, sr, 44_100)
+    file = soundfile.SoundFile(path)
+    audio_np = file.read(int(max_duration * file.samplerate), dtype='float32')
+    if audio_np.ndim == 2:
+        audio_np = numpy.mean(audio_np, axis=1)
+    audio_np = soxr.resample(audio_np, file.samplerate, 44_100, quality='HQ')
+    audio = torch.from_numpy(audio_np).unsqueeze(0)
     audio = audio / torch.maximum(audio.abs().max(), torch.tensor(1.))
     # is this better than clipping? should we target a specific energy level?
+
     return audio
 
 def tokenizer_encode(text: str, append_bos: bool = True, normalize: bool = True, return_normalized_text: bool = False) -> torch.Tensor | Tuple[torch.Tensor, str]:
@@ -459,4 +461,4 @@ if __name__ == "__main__":
     )
     audio_out = ae_decode(fish_ae, pca_state, latent_out)
     audio_out = crop_audio_to_flattening_point(audio_out, latent_out[0])
-    torchaudio.save("output.wav", audio_out[0].cpu(), 44100)
+    soundfile.save("output.wav", audio_out[0].squeeze().cpu(), 44100)

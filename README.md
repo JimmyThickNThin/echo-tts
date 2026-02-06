@@ -42,7 +42,7 @@ from inference import (
     sample_euler_cfg_independent_guidances,
 )
 from functools import partial
-import torchaudio
+import soundfile
 
 # Load models (downloads from HuggingFace on first run)
 model = load_model_from_hf(delete_blockwise_modules=True)
@@ -81,7 +81,7 @@ audio_out, _ = sample_pipeline(
     rng_seed=0,
 )
 
-torchaudio.save("output.wav", audio_out[0].cpu(), 44100)
+soundfile.save("output.wav", audio_out[0].squeeze().cpu(), 44100)
 ```
 
 See also:

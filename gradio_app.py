@@ -15,7 +15,7 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 import gradio as gr
 import torch
-import torchaudio
+import soundfile
 
 from inference import (
     load_model_from_hf,
@@ -100,23 +100,13 @@ def save_audio_with_format(audio_tensor: torch.Tensor, base_path: Path, filename
     if audio_format == "mp3":
         try:
             output_path = base_path / f"{filename}.mp3"
-            torchaudio.save(
-                str(output_path),
-                audio_tensor,
-                sample_rate,
-                format="mp3",
-                encoding="mp3",
-                bits_per_sample=None,
-            )
+            soundfile.write(str(output_path), audio_tensor.squeeze(), sample_rate)
             return output_path
         except Exception as e:
             print(f"MP3 encoding failed: {e}, falling back to WAV")
-            output_path = base_path / f"{filename}.wav"
-            torchaudio.save(str(output_path), audio_tensor, sample_rate)
-            return output_path
 
     output_path = base_path / f"{filename}.wav"
-    torchaudio.save(str(output_path), audio_tensor, sample_rate)
+    soundfile.write(str(output_path), audio_tensor.squeeze(), sample_rate)
     return output_path
 
 
